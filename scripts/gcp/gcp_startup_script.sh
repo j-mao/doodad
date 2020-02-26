@@ -12,6 +12,8 @@ query_metadata() {
     use_gpu=$(query_metadata use_gpu)
     terminate=$(query_metadata terminate)
     gcp_bucket_path=$(query_metadata gcp_bucket_path)
+    heartbeat_ip=$(query_metadata heartbeat_ip)
+    heartbeat_port=$(query_metadata heartbeat_port)
     instance_name=$(curl http://metadata/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
     echo "bucket_name:" $bucket_name
     echo "gcp_bucket_path:" $gcp_bucket_path
@@ -27,7 +29,7 @@ query_metadata() {
     while sudo fuser /var/{lib/{dpkg,apt/lists},cache/apt/archives}/lock >/dev/null 2>&1; do
         sleep 1
     done
-    sudo apt-get install -y jq git unzip
+    sudo apt-get install -y jq git unzip netcat
     die() { status=$1; shift; echo "FATAL: $*"; exit $status; }
     echo "starting docker!"
     systemctl status docker.socket
@@ -57,6 +59,14 @@ query_metadata() {
         sleep 300
     done &
 
+    # send heartbeats if configured
+    if [ "$heartbeat_ip" != "" ]; then
+        while /bin/true; do
+            netcat $heartbeat_ip $heartbeat_port -w1 <<< "{\"instance\":\"$instance_name\",\"data\":\"running\"}"
+            sleep 15
+        done &
+    fi
+
     if [ "$use_gpu" = "true" ]; then
         for i in {1..800}; do su -c "nvidia-modprobe -u -c=0" ubuntu && break || sleep 3; done
         systemctl start nvidia-docker
@@ -70,10 +80,14 @@ query_metadata() {
     #bash run_script_cmd.sh
     $shell_interpreter /tmp/remote_script.sh $script_args
 
-    if [ "$terminate" = "true" ]; then
-        echo "Finished experiment. Terminating"
-        zone=$(curl http://metadata/computeMetadata/v1/instance/zone -H "Metadata-Flavor: Google")
-        zone="${zone##*/}"
-        gcloud compute instances delete $instance_name --zone $zone --quiet
+    preempted=$( curl "http://metadata.google.internal/computeMetadata/v1/instance/preempted" -H "Metadata-Flavor: Google" )
+    if [ "$preempted" = "FALSE" ]; then
+        netcat $heartbeat_ip $heartbeat_port -w1 <<< "{\"instance\":\"$instance_name\",\"data\":\"done\"}"
+        if [ "$terminate" = "true" ]; then
+            echo "Finished experiment. Terminating"
+            zone=$(curl http://metadata/computeMetadata/v1/instance/zone -H "Metadata-Flavor: Google")
+            zone="${zone##*/}"
+            gcloud compute instances delete $instance_name --zone $zone --quiet
+        fi
     fi
 } >> /home/ubuntu/user_data.log 2>&1

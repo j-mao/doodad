@@ -6,6 +6,8 @@ query_metadata() {
 
 bucket_name=$(query_metadata bucket_name)
 gcp_bucket_path=$(query_metadata gcp_bucket_path)
+heartbeat_ip=$(query_metadata heartbeat_ip)
+heartbeat_port=$(query_metadata heartbeat_port)
 instance_name=$(curl http://metadata/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
 
 gsutil cp -r /doodad/* gs://$bucket_name/$gcp_bucket_path/logs

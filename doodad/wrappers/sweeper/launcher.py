@@ -88,14 +88,14 @@ class DoodadSweeper(object):
             gcp_image_project=self.gcp_project
         )
         if num_chunks > 0:
-            hyper_sweep.run_sweep_doodad_chunked(target, params, 
+            return hyper_sweep.run_sweep_doodad_chunked(target, params, 
                     run_mode=mode_ec2, 
                     docker_image=self.image,
                     num_chunks=num_chunks,
                     mounts=self.mounts+[self.mount_out_gcp]+extra_mounts, 
                     **kwargs)
         else:
-            hyper_sweep.run_sweep_doodad(target, params, 
+            return hyper_sweep.run_sweep_doodad(target, params, 
                     run_mode=mode_ec2, 
                     docker_image=self.image,
                     mounts=self.mounts+[self.mount_out_gcp]+extra_mounts, 
