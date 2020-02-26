@@ -11,7 +11,7 @@ fi
 CRCsum="$CRCsum"
 MD5="$MD5sum"
 SHA="$SHAsum"
-TMPROOT=\${TMPDIR:=/tmp}
+TMPROOT=\$(cd "\${TMPDIR:=/tmp}" && echo "\$(pwd -P)")
 USER_PWD="\$PWD"; export USER_PWD
 
 label="$LABEL"
