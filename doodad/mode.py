@@ -32,7 +32,7 @@ class LaunchMode(object):
         self.async_run = async_run
         self.use_gpu = use_gpu
 
-    def run_script(self, script_filename, dry=False, return_output=False, verbose=False):
+    def run_script(self, script_filename, dry=False, return_output=False, verbose=False, heartbeat=None):
         """
         Runs a shell script.
 
@@ -41,7 +41,11 @@ class LaunchMode(object):
             dry (bool): If True, prints commands to be run but does not run them.
             verbose (bool): Verbose mode
             return_output (bool): If True, returns stdout from the script as a string.
+            heartbeat (tuple): either None, or a tuple (IP, port)
         """
+        if heartbeat:
+            raise NotImplementedError('Heartbeats not implemented for local test')
+
         run_cmd = self._get_run_command(script_filename)
         if verbose:
             print('Executing command:', run_cmd)
@@ -125,9 +129,11 @@ class EC2Mode(LaunchMode):
         lines = [l.strip() for l in s.split('\n')]
         return '\n'.join(lines)
 
-    def run_script(self, script_name, dry=False, return_output=False, verbose=False):
+    def run_script(self, script_name, dry=False, return_output=False, verbose=False, heartbeat=None):
         if return_output:
             raise ValueError("Cannot return output for AWS scripts.")
+        if heartbeat:
+            raise NotImplementedError('Heartbeats not implemented on EC2')
 
         default_config = dict(
             image_id=self.image_id,
@@ -441,7 +447,7 @@ class GCPMode(LaunchMode):
     def print_launch_message(self):
         print('Go to https://console.cloud.google.com/compute to monitor jobs.')
 
-    def run_script(self, script, dry=False, return_output=False, verbose=False, instance_name=None):
+    def run_script(self, script, dry=False, return_output=False, verbose=False, heartbeat=None, instance_name=None):
         if return_output:
             raise ValueError("Cannot return output for GCP scripts.")
 
@@ -472,7 +478,9 @@ class GCPMode(LaunchMode):
             'script_args': script_args,
             'startup-script': start_script,
             'shutdown-script': stop_script,
-            'data_sync_interval': self.data_sync_interval
+            'data_sync_interval': self.data_sync_interval,
+            'heartbeat_ip': heartbeat[0] if heartbeat else '',
+            'heartbeat_port': heartbeat[1] if heartbeat else '',
         }
         # instance name must match regex '(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)'">
         if instance_name:
@@ -483,7 +491,7 @@ class GCPMode(LaunchMode):
         if verbose:
             print('Launched instance %s' % unique_name)
             print(instance_info)
-        return metadata
+        return unique_name
 
     def create_instance(self, metadata, name, exp_name="", exp_prefix="", dry=False):
         compute_images = self.compute.images().get(
