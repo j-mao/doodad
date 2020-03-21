@@ -14,6 +14,7 @@ query_metadata() {
     gcp_bucket_path=$(query_metadata gcp_bucket_path)
     heartbeat_ip=$(query_metadata heartbeat_ip)
     heartbeat_port=$(query_metadata heartbeat_port)
+    sync_output_on_startup=$(query_metadata sync_output_on_startup)
     instance_name=$(curl http://metadata/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
     echo "bucket_name:" $bucket_name
     echo "gcp_bucket_path:" $gcp_bucket_path
@@ -22,6 +23,7 @@ query_metadata() {
     echo "script_args:" $script_args
     echo "use_gpu:" $use_gpu
     echo "terminate:" $terminate
+    echo "sync_output_on_startup:" $sync_output_on_startup
     echo "instance_name:" $instance_name
 
     sudo apt-get update
@@ -47,6 +49,9 @@ query_metadata() {
     # Because GCPMode has no idea where the mounts are (the archive has them)
     # we just make the archive store everything into /doodad
     mkdir -p /doodad
+    if [ "$sync_output_on_startup" = "true" ]; then
+        gsutil -m rsync -r gs://$bucket_name/$gcp_bucket_path/logs /doodad
+    fi
     while /bin/true; do
         gsutil -m rsync -r /doodad gs://$bucket_name/$gcp_bucket_path/logs
         sleep 15

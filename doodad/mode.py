@@ -452,7 +452,7 @@ class GCPMode(LaunchMode):
     def print_launch_message(self):
         print('Go to https://console.cloud.google.com/compute to monitor jobs.')
 
-    def run_script(self, script, dry=False, return_output=False, verbose=False, heartbeat=None):
+    def run_script(self, script, dry=False, return_output=False, verbose=False, heartbeat=None, sync_output_on_startup=False):
         if return_output:
             raise NotImplementedError()
 
@@ -483,6 +483,7 @@ class GCPMode(LaunchMode):
             'script_args': script_args,
             'startup-script': start_script,
             'shutdown-script': stop_script,
+            'sync_output_on_startup': sync_output_on_startup,
             'heartbeat_ip': heartbeat[0] if heartbeat else '',
             'heartbeat_port': heartbeat[1] if heartbeat else '',
         }
