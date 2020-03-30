@@ -31,6 +31,7 @@ def build_archive(archive_filename='runfile.dar',
                   payload_script='',
                   mounts=(),
                   use_nvidia_docker=False,
+                  publish_ports=(),
                   verbose=False):
     """
     Construct a Doodad Archive
@@ -58,7 +59,7 @@ def build_archive(archive_filename='runfile.dar',
         
         write_run_script(archive_dir, mounts, 
             payload_script=payload_script, verbose=verbose)
-        write_docker_hook(archive_dir, docker_image, mounts, verbose=verbose, use_nvidia_docker=use_nvidia_docker)
+        write_docker_hook(archive_dir, docker_image, mounts, publish_ports, verbose=verbose, use_nvidia_docker=use_nvidia_docker)
         write_metadata(archive_dir)
 
         # create the self-extracting archive
@@ -73,7 +74,7 @@ def write_metadata(arch_dir):
         f.write('unix_timestamp=%d\n' % time.time())
         f.write('uuid=%s\n' % uuid.uuid4())
 
-def write_docker_hook(arch_dir, image_name, mounts, verbose=False, use_nvidia_docker=False):
+def write_docker_hook(arch_dir, image_name, mounts, publish_ports, verbose=False, use_nvidia_docker=False):
     docker_hook_file = os.path.join(arch_dir, 'docker.sh')
     builder = cmd_builder.CommandBuilder()
     builder.append('#!/bin/bash')
@@ -84,10 +85,12 @@ def write_docker_hook(arch_dir, image_name, mounts, verbose=False, use_nvidia_do
         for mnt in mounts if mnt.writeable])
     # mount the script into the docker image
     mnt_cmd += ' -v $(pwd):/'+DAR_PAYLOAD_MOUNT
-    docker_cmd = ('docker run {gpu_opt} {mount_cmds} -t {img} /bin/bash -c "cd /{dar_payload};./run.sh $*"'.format(
+    port_cmds = ''.join([' -p %d:%d' % (port, port) for port in publish_ports])
+    docker_cmd = ('docker run {gpu_opt} {mount_cmds} {port_cmds} -t {img} /bin/bash -c "cd /{dar_payload};./run.sh $*"'.format(
         gpu_opt='--gpus all' if use_nvidia_docker else '',
         img=image_name,
         mount_cmds=mnt_cmd,
+        port_cmds=port_cmds,
         dar_payload=DAR_PAYLOAD_MOUNT
     ))
     if verbose:
