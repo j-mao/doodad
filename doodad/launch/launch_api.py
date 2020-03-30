@@ -20,6 +20,7 @@ def run_command(
         cli_args=None,
         mode=launch_mode.LocalMode(),
         mounts=tuple(),
+        publish_ports=tuple(),
         return_output=False,
         verbose=False,
         docker_image='ubuntu:18.04'
@@ -44,7 +45,8 @@ def run_command(
                                                 payload_script=command,
                                                 verbose=False, 
                                                 docker_image=docker_image,
-                                                mounts=mounts)
+                                                mounts=mounts,
+                                                publish_ports=publish_ports)
         cmd = archive
         if cli_args:
             cmd = archive + ' -- ' + cli_args
