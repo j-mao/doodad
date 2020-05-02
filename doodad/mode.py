@@ -441,7 +441,7 @@ class GCPMode(LaunchMode):
     def print_launch_message(self):
         print('Go to https://console.cloud.google.com/compute to monitor jobs.')
 
-    def run_script(self, script, dry=False, return_output=False, verbose=False):
+    def run_script(self, script, dry=False, return_output=False, verbose=False, instance_name=None):
         if return_output:
             raise ValueError("Cannot return output for GCP scripts.")
 
@@ -475,7 +475,10 @@ class GCPMode(LaunchMode):
             'data_sync_interval': self.data_sync_interval
         }
         # instance name must match regex '(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)'">
-        unique_name= "doodad" + str(uuid.uuid4()).replace("-", "")
+        if instance_name:
+            unique_name = instance_name
+        else:
+            unique_name = "doodad" + str(uuid.uuid4()).replace("-", "")
         instance_info = self.create_instance(metadata, unique_name, exp_name, exp_prefix, dry=dry)
         if verbose:
             print('Launched instance %s' % unique_name)
