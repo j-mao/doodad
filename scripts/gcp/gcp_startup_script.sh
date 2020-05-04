@@ -4,6 +4,7 @@ query_metadata() {
     curl http://metadata/computeMetadata/v1/instance/attributes/$attribute_name -H "Metadata-Flavor: Google"
 }
 
+mkdir -p /home/ubuntu
 {
     bucket_name=$(query_metadata bucket_name)
     shell_interpreter=$(query_metadata shell_interpreter)
