@@ -10,7 +10,7 @@ heartbeat_ip=$(query_metadata heartbeat_ip)
 heartbeat_port=$(query_metadata heartbeat_port)
 instance_name=$(curl http://metadata/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
 
-gsutil cp -r /doodad/* gs://$bucket_name/$gcp_bucket_path/logs
+gsutil -m rsync -r /doodad gs://$bucket_name/$gcp_bucket_path/logs
 # sync stdout
 gcp_bucket_path=${gcp_bucket_path%/}  # remove trailing slash if present
 gsutil cp /home/ubuntu/user_data.log gs://$bucket_name/$gcp_bucket_path/${instance_name}_stdout.log
