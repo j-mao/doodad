@@ -123,7 +123,7 @@ class EC2Mode(LaunchMode):
         self.security_groups = security_groups
         self.security_group_ids = security_group_ids
         self.swap_size = swap_size
-        self.sync_interval = 15
+        self.sync_interval = 60
     
     def dedent(self, s):
         lines = [l.strip() for l in s.split('\n')]
@@ -185,8 +185,14 @@ class EC2Mode(LaunchMode):
         """)
 
         # 1) Upload script and download it to remote
-        script_split = os.path.split(script_name)[-1]
-        aws_util.s3_upload(script_name, self.s3_bucket, os.path.join('doodad/mount', script_split), dry=dry)
+        cmd_split = shlex.split(script_name)
+        script_fname = cmd_split[0]
+        script_split = os.path.split(script_fname)[-1]
+        if len(cmd_split) > 1:
+            script_args = ' '.join(cmd_split[1:])
+        else:
+            script_args = ''
+        aws_util.s3_upload(script_fname, self.s3_bucket, os.path.join('doodad/mount', script_split), dry=dry)
         script_s3_filename = 's3://{bucket_name}/doodad/mount/{script_name}'.format(
             bucket_name=self.s3_bucket,
             script_name=script_split
@@ -207,15 +213,19 @@ class EC2Mode(LaunchMode):
         ec2_local_dir = '/doodad'
 
         # Sync interval
+        # aws s3 sync --exclude '*' {include_string} {log_dir} {s3_path}
         sio.write("""
         while /bin/true; do
-            aws s3 sync --exclude '*' {include_string} {log_dir} {s3_path}
+            aws s3 cp --recursive --region {region} {log_dir} {s3_path}
             sleep {periodic_sync_interval}
         done & echo sync initiated
         """.format(
-            include_string='',
-            log_dir=ec2_local_dir,
+            #include_string='',
             s3_path=s3_log_dir,
+            #periodic_sync_interval=self.sync_interval
+            log_dir=ec2_local_dir,
+            region=self.region,
+            #s3_path=stdout_log_s3_path,
             periodic_sync_interval=self.sync_interval
         ))
 
@@ -269,7 +279,7 @@ class EC2Mode(LaunchMode):
             sio.write("echo 'Testing nvidia-smi inside docker'\n")
             sio.write("nvidia-docker run --rm {docker_image} nvidia-smi\n".format(docker_image=self.docker_image))
 
-        docker_cmd = '%s /tmp/remote_script.sh' % self.shell_interpreter
+        docker_cmd = '%s /tmp/remote_script.sh %s' % (self.shell_interpreter, script_args)
         sio.write(docker_cmd+'\n')
 
         # Sync all output mounts to s3 after running the user script
@@ -434,7 +444,7 @@ class GCPMode(LaunchMode):
         self.instance_type = instance_type
         self.gcp_label = gcp_label
         self.data_sync_interval = data_sync_interval
-        self.compute = googleapiclient.discovery.build('compute', 'v1')
+        self.compute = googleapiclient.discovery.build('compute', 'v1', cache_discovery=False)
 
         if self.use_gpu:
             self.num_gpu = num_gpu
