@@ -162,7 +162,7 @@ def setup_iam():
     )
     iam_client.put_role_policy(
         RoleName=role.name,
-        PolicyName='TerminateInstances',
+        PolicyName='StopAndTerminateInstances',
         PolicyDocument=json.dumps({
             "Version": "2012-10-17",
             "Statement": [
@@ -170,6 +170,7 @@ def setup_iam():
                     "Sid": "Stmt1458019101000",
                     "Effect": "Allow",
                     "Action": [
+                        "ec2:StopInstances",
                         "ec2:TerminateInstances"
                     ],
                     "Resource": [

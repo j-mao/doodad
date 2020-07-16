@@ -94,6 +94,7 @@ class EC2Mode(LaunchMode):
                  s3_log_path,
                  ami_name=None,
                  terminate_on_end=True,
+                 autorestart=False,
                  region='auto',
                  instance_type='r3.nano',
                  spot_price=0.0,
@@ -124,16 +125,17 @@ class EC2Mode(LaunchMode):
         self.security_group_ids = security_group_ids
         self.swap_size = swap_size
         self.sync_interval = 60
+        self.autorestart = autorestart
+        if self.autorestart and self.terminate_on_end:
+            raise ValueError("Cannot both terminate and auto-restart on end")
     
     def dedent(self, s):
         lines = [l.strip() for l in s.split('\n')]
         return '\n'.join(lines)
 
-    def run_script(self, script_name, dry=False, return_output=False, verbose=False, heartbeat=None):
+    def run_script(self, script_name, dry=False, return_output=False, verbose=False):
         if return_output:
             raise ValueError("Cannot return output for AWS scripts.")
-        if heartbeat:
-            raise NotImplementedError('Heartbeats not implemented on EC2')
 
         default_config = dict(
             image_id=self.image_id,
@@ -211,6 +213,16 @@ class EC2Mode(LaunchMode):
         # moint_point: directory visible to docker running inside ec2
         #               spot instance
         ec2_local_dir = '/doodad'
+
+        # Download anything that is already there to enable job continuity
+        sio.write('aws s3 cp --recursive --region {region} {s3_path} {log_dir}'.format(
+            #include_string='',
+            s3_path=s3_log_dir,
+            #periodic_sync_interval=self.sync_interval
+            log_dir=ec2_local_dir,
+            region=self.region,
+            #s3_path=stdout_log_s3_path,
+        ))
 
         # Sync interval
         # aws s3 sync --exclude '*' {include_string} {log_dir} {s3_path}
@@ -301,6 +313,13 @@ class EC2Mode(LaunchMode):
                 EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die \"wget instance-id has failed: $?\"`"
                 aws ec2 terminate-instances --instance-ids $EC2_INSTANCE_ID --region {aws_region}
             """.format(aws_region=self.region))
+        elif self.autorestart:
+            # Stop the instance on user-side to signify completion and cut running costs
+            # It is not restarted by AWS
+            sio.write("""
+                EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die \"wget instance-id has failed: $?\"`"
+                aws ec2 stop-instances --instance-ids $EC2_INSTANCE_ID --region {aws_region}
+            """.format(aws_region=self.region))
         sio.write("} >> /tmp/user_data.log 2>&1\n")
 
         full_script = self.dedent(sio.getvalue())
@@ -337,6 +356,7 @@ class EC2Mode(LaunchMode):
             InstanceCount=1,
             LaunchSpecification=instance_args,
             SpotPrice=str(aws_config["spot_price"]),
+            Type='persistent' if self.autorestart else 'one-time',
             # ClientToken=params_list[0]["exp_name"],
         )
 
