@@ -71,7 +71,7 @@ mkdir -p /home/ubuntu
     fi
 
     if [ "$use_gpu" = "true" ]; then
-        for i in {1..800}; do su -c "nvidia-modprobe -u -c=0" ubuntu && break || sleep 3; done
+        for i in {1..800}; do nvidia-modprobe -u -c=0 && break || sleep 3; done
         systemctl start nvidia-docker
         echo 'Testing nvidia-smi'
         nvidia-smi
