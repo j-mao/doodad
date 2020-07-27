@@ -28,7 +28,17 @@ from doodad.darchive import archive_builder_docker as archive_builder
 
 class Sweeper(object):
     def __init__(self, hyper_config):
-        self.hyper_config = hyper_config
+        assert (type(hyper_config) == dict)
+        self.hyper_config = {}
+        # Add all hyperparameter configs to our dict
+        for key in hyper_config.keys():
+            try:
+                iter(hyper_config[key]) # Treat non-iterables as "constant" options
+                assert(not isinstance(hyper_config[key], (str, bytes))) # String-like configs are treated as constant as well
+            except:
+                self.hyper_config[key] = [hyper_config[key]]
+            else:
+                self.hyper_config[key] = hyper_config[key]
 
     def __iter__(self):
         count = 0
