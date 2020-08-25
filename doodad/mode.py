@@ -103,6 +103,8 @@ class EC2Mode(LaunchMode):
                  aws_key_name=None,
                  iam_instance_profile_name='doodad',
                  swap_size=4096,
+                 volume_size=None,
+                 snapshot_id=None,
                  tag_exp_name='doodad_experiment',
                  **kwargs):
         super(EC2Mode, self).__init__(**kwargs)
@@ -126,6 +128,8 @@ class EC2Mode(LaunchMode):
         self.swap_size = swap_size
         self.sync_interval = 60
         self.autorestart = autorestart
+        self.volume_size = volume_size
+        self.snapshot_id = snapshot_id
         if self.autorestart and self.terminate_on_end:
             raise ValueError("Cannot both terminate and auto-restart on end")
     
@@ -137,6 +141,8 @@ class EC2Mode(LaunchMode):
         if return_output:
             raise ValueError("Cannot return output for AWS scripts.")
 
+        
+            
         default_config = dict(
             image_id=self.image_id,
             instance_type=self.instance_type,
@@ -342,9 +348,23 @@ class EC2Mode(LaunchMode):
             NetworkInterfaces=aws_config["network_interfaces"],
             IamInstanceProfile=dict(
                 Name=aws_config["iam_instance_profile_name"],
-            ),
+            )
             #**config.AWS_EXTRA_CONFIGS,
         )
+        
+        if self.volume_size is not None and self.snapshot_id is not None:
+            print('Adding block device mappings')
+            instance_args['BlockDeviceMappings'] = [dict(
+                DeviceName='/dev/sda1',
+                NoDevice='/dev/sda1',
+                VirtualName='ephemeral0',
+                Ebs=dict(
+                    DeleteOnTermination=True,
+                    VolumeSize=self.volume_size,
+                    SnapshotId=self.snapshot_id
+                )
+            )]
+
 
         if verbose:
             print("************************************************************")
