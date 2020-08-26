@@ -356,7 +356,6 @@ class EC2Mode(LaunchMode):
             print('Adding block device mappings')
             instance_args['BlockDeviceMappings'] = [dict(
                 DeviceName='/dev/sda1',
-                NoDevice='/dev/sda1',
                 VirtualName='ephemeral0',
                 Ebs=dict(
                     DeleteOnTermination=True,
